@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+enum MemberRole {
+  ADMIN
+  MODERATOR
+  MEMBER
+  GUEST
+}
+
+model Profile {
+  id            String          @id @default(uuid())
+  userId        String          @unique
+  name          String
+  imageUrl      String?         @db.Text
+  email         String          @db.Text
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  channels      ChannelMember[] // New relation for many-to-many
+  ownedChannels Channel[]       @relation("OwnerChannels") // Channel owned by this profile
+}
+
+model Channel {
+  id          String            @id @default(uuid())
+  name        String
+  description String?  
+  image       String? 
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  members     ChannelMember[]   // New relation for many-to-many
+  messages    Message[]         // Messages sent in the channel
+  owner       Profile?          @relation("OwnerChannels", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId     String?           // Channel owner who created it
+  type        String            @default("channel")
+}
+
+model ChannelMember {
+  channelId   String
+  profileId   String
+  channel     Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  profile     Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@id([channelId, profileId]) // Composite key to ensure uniqueness of channel-member relationship
+}
+
+model Message {
+  id       String  @id @default(uuid())
+  content  String  @db.Text
+  fileUrl  String? @db.Text
+  memberId String
+  groupId  String
+  deleted  Boolean @default(false)
+
+  channel Channel @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId])
+  @@index([memberId])
+}
+
+model Conversation {
+  id          String @id @default(uuid())
+  memberOneId String
+  memberTwoId String
+
+  directMessages DirectMessage[]
+
+  @@unique([memberOneId, memberTwoId])
+  @@index([memberTwoId])
+}
+
+model DirectMessage {
+  id      String  @id @default(uuid())
+  content String  @db.Text
+  fileUrl String? @db.Text
+
+  memberId String
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  deleted   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId])
+  @@index([conversationId])
+}
