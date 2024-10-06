@@ -2,6 +2,7 @@ const { prisma } = require('../lib/prisma');
 
 const createUser = async (req, res) => {
     const { userBody } = req.body;
+
     try {
         const existingProfile = await prisma.profile.findUnique({
             where: { userId: userBody.id },
@@ -10,7 +11,6 @@ const createUser = async (req, res) => {
         if (existingProfile) {
             return res.status(400).json({message: "user already exists"});
         }
-        console.log(userBody.id)
         const newProfile = await prisma.profile.create({
             data: {
                 userId: userBody.id,
@@ -28,7 +28,6 @@ const createUser = async (req, res) => {
 
 const getUserById = async (req, res) => {
     const { userId } = req.params;
-
     try {
         const profile = await prisma.profile.findUnique({
             where: {
