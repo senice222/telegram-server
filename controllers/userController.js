@@ -9,7 +9,7 @@ const createUser = async (req, res) => {
         });
 
         if (existingProfile) {
-            return res.status(400).json({message: "user already exists"});
+            return res.status(400).json({ message: "user already exists" });
         }
         const newProfile = await prisma.profile.create({
             data: {
@@ -33,6 +33,22 @@ const getUserById = async (req, res) => {
             where: {
                 userId,
             },
+            include: {
+                channels: { // включение каналов
+                    include: {
+                        channel: { // включение каналов
+                            include: {
+                                members: { // получение мемберов
+                                    include: {
+                                        profile: true, // для получения информации о каждом участнике
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                ownedChannels: true
+            }
         });
         res.status(200).json(profile);
     } catch (error) {

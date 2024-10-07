@@ -11,14 +11,14 @@ const createChannel = async (req, res) => {
                 description,
                 image: req.file.filename,
                 owner: {
-                    connect: { id: ownerId }, 
+                    connect: { id: ownerId },
                 },
                 members: {
-                    create: { profileId: ownerId }, 
+                    create: { profileId: ownerId },
                 },
             },
         });
-        res.status(201).json(channel); 
+        res.status(201).json(channel);
     } catch (error) {
         console.error('Ошибка при создании канала:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
@@ -54,15 +54,39 @@ const searchChannels = async (req, res) => {
     }
 }
 
+const joinChannel = async (req, res) => {
+    const { profileId, channelId } = req.query
+    try {
+        await prisma.channel.update({
+            where: {
+                id: channelId,
+            },
+            data: {
+                members: {
+                    create: { profileId: profileId },
+                }
+            },
+        });
+        res.status(200).json({ message: 'successfull join in channel' });
+    } catch (e) {
+        console.error('Ошибка при вступлении в канал:', e);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+}
 
 const getChannelById = async (req, res) => {
     const { channelId } = req.params;
-    
+
     try {
         const channel = await prisma.channel.findUnique({
             where: {
                 id: channelId,
             },
+            include: {
+                members: true,
+                messages: true,
+                owner: true,
+            }
         });
         res.status(200).json(channel);
     } catch (error) {
@@ -71,4 +95,4 @@ const getChannelById = async (req, res) => {
     }
 }
 
-module.exports = { createChannel, searchChannels, getChannelById };
+module.exports = { createChannel, searchChannels, getChannelById, joinChannel };
