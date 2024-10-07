@@ -4,7 +4,6 @@ const { prisma } = require('../lib/prisma');
 const createChannel = async (req, res) => {
     const { name, description, ownerId } = req.body;
 
-
     try {
         const channel = await prisma.channel.create({
             data: {
@@ -55,4 +54,21 @@ const searchChannels = async (req, res) => {
     }
 }
 
-module.exports = { createChannel, searchChannels };
+
+const getChannelById = async (req, res) => {
+    const { channelId } = req.params;
+    
+    try {
+        const channel = await prisma.channel.findUnique({
+            where: {
+                id: channelId,
+            },
+        });
+        res.status(200).json(channel);
+    } catch (error) {
+        console.error('Ошибка при получении канала:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+}
+
+module.exports = { createChannel, searchChannels, getChannelById };
