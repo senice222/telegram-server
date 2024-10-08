@@ -34,15 +34,15 @@ app.use('/api/uploads', express.static(path.join(dirname, '/uploads')));
 
 io.on('connection', (socket) => {
   console.log(socket)
-  console.log('Клієнт підключився:', socket.id);
+  console.log('Client connected:', socket.id);
 
   socket.on('message', (msg) => {
-    console.log('Отримано повідомлення:', msg);
+    console.log('got message:', msg);
     socket.broadcast.emit('message', msg);
   });
 
   socket.on('disconnect', () => {
-    console.log('Клієнт відключився:', socket.id);
+    console.log('client disconnected:', socket.id);
   });
 });
 

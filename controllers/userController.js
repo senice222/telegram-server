@@ -57,7 +57,24 @@ const getUserById = async (req, res) => {
     }
 };
 
+const updateUserLastSeen = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await prisma.profile.update({
+            where: { id },
+            data: { lastSeen: new Date() }
+          });
+          res.status(200).json({ message: "last seen updated" });
+    } catch(e) {
+        console.log("error during updating last seen:", e)
+        res.status(500).json({ message: "error updating last seen" });
+    }
+    
+};
+
 module.exports = {
     getUserById,
-    createUser
+    createUser,
+    updateUserLastSeen
 };

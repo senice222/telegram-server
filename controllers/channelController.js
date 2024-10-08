@@ -76,7 +76,6 @@ const joinChannel = async (req, res) => {
 
 const getChannelById = async (req, res) => {
     const { channelId } = req.params;
-
     try {
         const channel = await prisma.channel.findUnique({
             where: {
@@ -95,4 +94,124 @@ const getChannelById = async (req, res) => {
     }
 }
 
-module.exports = { createChannel, searchChannels, getChannelById, joinChannel };
+const sendMessage = async (req, res) => {
+    const { profileId, channelId } = req.query;
+    const { content } = req.body;
+    // const file = req.file.filename
+
+    if (!content) {
+        return res.status(400).json({ message: "Content missing" });
+    }
+
+    try {
+        const currentUser = await prisma.profile.findUnique({
+            where: {
+                id: profileId
+            }
+        })
+
+        if (!currentUser) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const channelExists = await prisma.channel.findUnique({
+            where: { id: channelId }
+        });
+
+        if (!channelExists) {
+            return res.status(404).json({ error: "Channel not found" });
+        }
+        const isCurrentUserOwner = currentUser.id === channelExists.ownerId;
+        if (!isCurrentUserOwner) {
+            return res.status(403).json({ error: "You are not the owner of this channel" });
+        }
+
+        const newMessage = await prisma.message.create({
+            data: {
+                content,
+                fileUrl: "123",
+                channelId
+            }
+        });
+
+        res.status(200).json(newMessage);
+    } catch (error) {
+        console.error("Error while sending message:", error);
+        res.status(500).json({ error: "Server error while sending message" });
+    }
+};
+
+const getChannelMessages = async (req, res) => {
+    try {
+        const MESSAGE_BATCH = 10
+        const { cursor, channelId } = req.query;
+        if (!channelId) {
+            return res.status(400).json({ message: 'Channel ID missing' });
+        }
+
+        let messages = [];
+
+        if (cursor) {
+            messages = await prisma.message.findMany({
+                take: MESSAGE_BATCH,
+                skip: 1, // skip cursor message
+                cursor: {
+                    id: cursor,
+                },
+                where: {
+                    channelId,
+                },
+                include: {
+                    channel: {
+                        include: {
+                            members: {
+                                include: {
+                                    profile: true,  // Вложенное включение профиля через members
+                                },
+                            },
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            });
+        } else {
+            messages = await prisma.message.findMany({
+                take: MESSAGE_BATCH,
+                where: {
+                    channelId,
+                },
+                include: {
+                    channel: {
+                        include: {
+                            members: {
+                                include: {
+                                    profile: true,  // Вложенное включение профиля через members
+                                },
+                            },
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            });
+        }
+
+        let nextCursor = null;
+
+        if (messages.length === MESSAGE_BATCH) {
+            nextCursor = messages[MESSAGE_BATCH - 1].id;
+        }
+        return res.status(200).json({
+            items: messages,
+            nextCursor,
+        });
+    } catch (error) {
+        console.error('MESSAGE_ERROR', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+}
+
+module.exports = { createChannel, searchChannels, getChannelById, joinChannel, sendMessage, getChannelMessages };
