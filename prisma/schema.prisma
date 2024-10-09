@@ -23,6 +23,7 @@ model Profile {
   email         String          @db.Text
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  type          String          @default("user")
   channels      ChannelMember[] // New relation for many-to-many
   ownedChannels Channel[]       @relation("OwnerChannels") // Channel owned by this profile
   lastSeen      DateTime?
@@ -65,6 +66,24 @@ model Message {
   updatedAt DateTime @updatedAt
 
   @@index([channelId])
+}
+
+model Group {
+  id         String          @id @default(uuid())
+  name       String
+  description String?
+  image      String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  members     GroupMember[] // New relation for many-to-many
+}
+
+model GroupMember {
+  id String @id @default(uuid())
+  groupId String
+  memberId String
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
 }
 
 model Conversation {

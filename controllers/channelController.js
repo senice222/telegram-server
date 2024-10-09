@@ -143,7 +143,7 @@ const sendMessage = async (req, res) => {
 
 const getChannelMessages = async (req, res) => {
     try {
-        const MESSAGE_BATCH = 10
+        const MESSAGE_BATCH = 15
         const { cursor, channelId } = req.query;
         if (!channelId) {
             return res.status(400).json({ message: 'Channel ID missing' });
