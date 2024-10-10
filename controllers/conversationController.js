@@ -18,15 +18,13 @@ const createConversationIfNotExists = async (req, res) => {
         });
 
         if (!conversation) {
-            // const idWithMinus = `-${uuidv4()}`;
+            const idWithMinus = `-${uuidv4()}`;
             conversation = await prisma.conversation.create({
                 data: {
-                    // id: idWithMinus,
-                    // memberOneId,
+                    id: idWithMinus,
                     memberOne: {
                         connect: {id: memberOneId},
                     },
-                    // memberTwoId,
                     memberTwo: {
                         connect: {id: memberTwoId},
                     },
@@ -50,6 +48,24 @@ const getConversation = async (req, res) => {
                     { memberOneId, memberTwoId },
                     { memberOneId: memberTwoId, memberTwoId: memberOneId }
                 ]
+            },
+            include: {
+                memberOne: true,
+                memberTwo: true
+            }
+        });
+        res.status(200).json(conversation)
+    } catch (e) {
+        console.log(e, "error during getting conv")
+    }
+}
+
+const getConversationById = async (req, res) => {
+    const {id} = req.params
+    try {
+        let conversation = await prisma.conversation.findFirst({
+            where: {
+                id
             },
             include: {
                 memberOne: true,
@@ -95,4 +111,4 @@ const sendMessageInConversation = async (req, res) => {
     }
 };
 
-module.exports = {createConversationIfNotExists, sendMessageInConversation, getConversation}
+module.exports = {createConversationIfNotExists, sendMessageInConversation, getConversation, getConversationById}

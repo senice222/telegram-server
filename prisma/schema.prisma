@@ -16,19 +16,19 @@ enum MemberRole {
 }
 
 model Profile {
-  id            String          @id @default(uuid())
-  userId        String          @unique
-  name          String
-  imageUrl      String?         @db.Text
-  email         String          @db.Text
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  type          String          @default("user")
-  channels      ChannelMember[] // New relation for many-to-many
-  ownedChannels Channel[]       @relation("OwnerChannels") // Channel owned by this profile
-  lastSeen      DateTime?
-  onversationsInitiated Conversation[] @relation("ProfileOne")
-  conversationsReceived  Conversation[] @relation("ProfileTwo")
+  id                    String          @id @default(uuid())
+  userId                String          @unique
+  name                  String
+  imageUrl              String?         @db.Text
+  email                 String          @db.Text
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  type                  String          @default("user")
+  channels              ChannelMember[] // New relation for many-to-many
+  ownedChannels         Channel[]       @relation("OwnerChannels") // Channel owned by this profile
+  lastSeen              DateTime?
+  conversationsInitiated Conversation[]  @relation("ProfileOne")
+  conversationsReceived Conversation[]  @relation("ProfileTwo")
 }
 
 model Channel {
@@ -104,12 +104,12 @@ model GroupMember {
 // }
 
 model Conversation {
-  id          String   @id @default(uuid())
-  memberOneId String
-  memberOne   Profile  @relation("ProfileOne", fields: [memberOneId], references: [id], onDelete: Cascade)
-  memberTwoId String
-  memberTwo   Profile  @relation("ProfileTwo", fields: [memberTwoId], references: [id], onDelete: Cascade)
-
+  id             String          @id @default(uuid())
+  memberOneId    String
+  memberOne      Profile         @relation("ProfileOne", fields: [memberOneId], references: [id], onDelete: Cascade)
+  memberTwoId    String
+  memberTwo      Profile         @relation("ProfileTwo", fields: [memberTwoId], references: [id], onDelete: Cascade)
+  type           String          @default("conversation")
   directMessages DirectMessage[]
 
   @@unique([memberOneId, memberTwoId])

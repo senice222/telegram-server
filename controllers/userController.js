@@ -47,6 +47,18 @@ const getUserById = async (req, res) => {
                         },
                     },
                 },
+                conversationsInitiated: {
+                    include: {
+                        memberOne: true,
+                        memberTwo: true
+                    }
+                },
+                conversationsReceived: {
+                    include: {
+                        memberOne: true,
+                        memberTwo: true
+                    }
+                },
                 ownedChannels: true
             }
         });
@@ -95,13 +107,13 @@ const updateUserLastSeen = async (req, res) => {
         await prisma.profile.update({
             where: { id },
             data: { lastSeen: new Date() }
-          });
-          res.status(200).json({ message: "last seen updated" });
-    } catch(e) {
+        });
+        res.status(200).json({ message: "last seen updated" });
+    } catch (e) {
         console.log("error during updating last seen:", e)
         res.status(500).json({ message: "error updating last seen" });
     }
-    
+
 };
 
 module.exports = {
