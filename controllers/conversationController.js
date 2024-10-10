@@ -18,15 +18,15 @@ const createConversationIfNotExists = async (req, res) => {
         });
 
         if (!conversation) {
-            const idWithMinus = `-${uuidv4()}`;
+            // const idWithMinus = `-${uuidv4()}`;
             conversation = await prisma.conversation.create({
                 data: {
-                    id: idWithMinus,
-                    memberOneId,
+                    // id: idWithMinus,
+                    // memberOneId,
                     memberOne: {
                         connect: {id: memberOneId},
                     },
-                    memberTwoId,
+                    // memberTwoId,
                     memberTwo: {
                         connect: {id: memberTwoId},
                     },
@@ -79,10 +79,8 @@ const sendMessageInConversation = async (req, res) => {
             return res.status(404).json({ error: "Conversation not found" });
         }
 
-        const idWithMinus = `-${uuidv4()}`;
         const message = await prisma.directMessage.create({
             data: {
-                id: idWithMinus,
                 content,
                 fileUrl,
                 memberId,

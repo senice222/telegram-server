@@ -27,7 +27,8 @@ model Profile {
   channels      ChannelMember[] // New relation for many-to-many
   ownedChannels Channel[]       @relation("OwnerChannels") // Channel owned by this profile
   lastSeen      DateTime?
-  Member        Member[]
+  onversationsInitiated Conversation[] @relation("ProfileOne")
+  conversationsReceived  Conversation[] @relation("ProfileTwo")
 }
 
 model Channel {
@@ -87,27 +88,27 @@ model GroupMember {
   group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 }
 
-model Member {
-  id        String @id @default(uuid())
-  profileId String
+// model Member {
+//   id        String @id @default(uuid())
+//   profileId String
 
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+//   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  conversationsInitiated Conversation[] @relation("MemberOne")
-  conversationsReceived  Conversation[] @relation("MemberTwo")
+//   conversationsInitiated Conversation[] @relation("MemberOne")
+//   conversationsReceived  Conversation[] @relation("MemberTwo")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
 
-  @@index([profileId])
-}
+//   @@index([profileId])
+// }
 
 model Conversation {
-  id          String @id @default(uuid())
+  id          String   @id @default(uuid())
   memberOneId String
-  memberOne   Member @relation("MemberOne", fields: [memberOneId], references: [id], onDelete: Cascade)
+  memberOne   Profile  @relation("ProfileOne", fields: [memberOneId], references: [id], onDelete: Cascade)
   memberTwoId String
-  memberTwo   Member @relation("MemberTwo", fields: [memberTwoId], references: [id], onDelete: Cascade)
+  memberTwo   Profile  @relation("ProfileTwo", fields: [memberTwoId], references: [id], onDelete: Cascade)
 
   directMessages DirectMessage[]
 
