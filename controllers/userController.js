@@ -57,6 +57,37 @@ const getUserById = async (req, res) => {
     }
 };
 
+const getUserByPrismaId = async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const profile = await prisma.profile.findUnique({
+            where: {
+                id: userId,
+            },
+            include: {
+                channels: { // включение каналов
+                    include: {
+                        channel: { // включение каналов
+                            include: {
+                                members: { // получение мемберов
+                                    include: {
+                                        profile: true, // для получения информации о каждом участнике
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                ownedChannels: true
+            }
+        });
+        res.status(200).json(profile);
+    } catch (error) {
+        console.error('Ошибка при создании канала:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+};
+
 const updateUserLastSeen = async (req, res) => {
     const { id } = req.params;
 
@@ -76,5 +107,6 @@ const updateUserLastSeen = async (req, res) => {
 module.exports = {
     getUserById,
     createUser,
-    updateUserLastSeen
+    updateUserLastSeen,
+    getUserByPrismaId
 };

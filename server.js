@@ -3,6 +3,8 @@ const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const channelRouter = require('./routes/channelRoutes');
 const userRoute = require('./routes/userRoutes');
+const conversationRoute = require('./routes/conversationRoutes');
+
 const cors = require('cors')
 const path = require('path');
 const http = require('http');
@@ -29,6 +31,8 @@ app.use(cors())
 
 app.use('/api', channelRouter);
 app.use('/api', userRoute);
+app.use('/api', conversationRoute);
+
 const dirname = path.resolve();
 app.use('/api/uploads', express.static(path.join(dirname, '/uploads')));
 
