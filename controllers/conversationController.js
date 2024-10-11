@@ -111,4 +111,127 @@ const sendMessageInConversation = async (req, res) => {
     }
 };
 
-module.exports = {createConversationIfNotExists, sendMessageInConversation, getConversation, getConversationById}
+const getConversationMessages = async (req, res) => {
+    try {
+        const MESSAGE_BATCH = 10;
+        const { cursor, conversationId } = req.query;
+
+        if (!conversationId) {
+            return res.status(400).json({ message: 'Conversation ID missing' });
+        }
+
+        let messages = [];
+
+        if (cursor) {
+            messages = await prisma.directMessage.findMany({
+                take: MESSAGE_BATCH,
+                skip: 1, 
+                cursor: {
+                    id: cursor,
+                },
+                where: {
+                    conversationId,
+                },
+                include: {
+                    conversation: {
+                        include: {
+                            memberOne: true,
+                            memberTwo: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            });
+        } else {
+            messages = await prisma.directMessage.findMany({
+                take: MESSAGE_BATCH,
+                where: {
+                    conversationId,
+                },
+                include: {
+                    conversation: {
+                        include: {
+                            memberOne: true,
+                            memberTwo: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: 'desc',
+                },
+            });
+        }
+
+        let nextCursor = null;
+
+        if (messages.length === MESSAGE_BATCH) {
+            nextCursor = messages[MESSAGE_BATCH - 1].id;
+        }
+
+        return res.status(200).json({
+            items: messages,
+            nextCursor,
+        });
+    } catch (error) {
+        console.error('CONVERSATION_MESSAGE_ERROR', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+const sendDirectMessage = async (req, res) => {
+    const { profileId, conversationId } = req.query;
+    const { content } = req.body;
+    // const file = req.file.filename 
+
+    if (!content) {
+        return res.status(400).json({ message: "Content missing" });
+    }
+
+    try {
+        const currentUser = await prisma.profile.findUnique({
+            where: { id: profileId }
+        });
+
+        if (!currentUser) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const conversation = await prisma.conversation.findUnique({
+            where: { id: conversationId },
+            include: {
+                memberOne: true,
+                memberTwo: true,
+            },
+        });
+
+        if (!conversation) {
+            return res.status(404).json({ error: "Conversation not found" });
+        }
+
+        const isParticipant =
+            conversation.memberOneId === profileId || conversation.memberTwoId === profileId;
+
+        if (!isParticipant) {
+            return res.status(403).json({ error: "You are not a participant in this conversation" });
+        }
+
+        const newDirectMessage = await prisma.directMessage.create({
+            data: {
+                content,
+                // fileUrl: req.file.filename, 
+                memberId: profileId,
+                conversationId,
+            }
+        });
+
+        res.status(200).json(newDirectMessage);
+    } catch (error) {
+        console.error("Error while sending direct message:", error);
+        res.status(500).json({ error: "Server error while sending direct message" });
+    }
+};
+
+
+module.exports = {createConversationIfNotExists, sendMessageInConversation, getConversation, getConversationById, getConversationMessages, sendDirectMessage}
