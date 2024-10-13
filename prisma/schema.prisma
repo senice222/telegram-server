@@ -29,6 +29,7 @@ model Profile {
   lastSeen              DateTime?
   conversationsInitiated Conversation[]  @relation("ProfileOne")
   conversationsReceived Conversation[]  @relation("ProfileTwo")
+  groups Group[] @relation("OwnerGroups")
 }
 
 model Channel {
@@ -71,13 +72,15 @@ model Message {
 }
 
 model Group {
-  id          String   @id @default(uuid())
+  id          String   @id
   name        String
   description String?
   image       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
+  ownerId     String
+  owner       Profile? @relation("OwnerGroups", fields: [ownerId], references: [id], onDelete: Cascade)
+  messages GroupMessage[]
   members GroupMember[] // New relation for many-to-many
 }
 
@@ -132,4 +135,22 @@ model DirectMessage {
 
   @@index([memberId])
   @@index([conversationId])
+}
+
+model GroupMessage {
+  id      String  @id @default(uuid())
+  content String  @db.Text
+  fileUrl String? @db.Text
+
+  memberId String
+
+  groupId String
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  deleted   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId])
+  @@index([groupId])
 }
