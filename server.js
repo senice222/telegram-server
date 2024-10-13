@@ -9,6 +9,7 @@ const cors = require('cors')
 const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
+const groupRoute = require('./routes/groupRoutes');
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use(cors())
 app.use('/api', channelRouter);
 app.use('/api', userRoute);
 app.use('/api', conversationRoute);
+app.use('/api', groupRoute)
 
 const dirname = path.resolve();
 app.use('/api/uploads', express.static(path.join(dirname, '/uploads')));
