@@ -16,20 +16,20 @@ enum MemberRole {
 }
 
 model Profile {
-  id                    String          @id @default(uuid())
-  userId                String          @unique
-  name                  String
-  imageUrl              String?         @db.Text
-  email                 String          @db.Text
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-  type                  String          @default("user")
-  channels              ChannelMember[] // New relation for many-to-many
-  ownedChannels         Channel[]       @relation("OwnerChannels") // Channel owned by this profile
-  lastSeen              DateTime?
+  id                     String          @id @default(uuid())
+  userId                 String          @unique
+  name                   String
+  imageUrl               String?         @db.Text
+  email                  String          @db.Text
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  type                   String          @default("user")
+  channels               ChannelMember[] // New relation for many-to-many
+  ownedChannels          Channel[]       @relation("OwnerChannels") // Channel owned by this profile
+  lastSeen               DateTime?
   conversationsInitiated Conversation[]  @relation("ProfileOne")
-  conversationsReceived Conversation[]  @relation("ProfileTwo")
-  groups Group[] @relation("OwnerGroups")
+  conversationsReceived  Conversation[]  @relation("ProfileTwo")
+  groups                 Group[]         @relation("OwnerGroups")
 }
 
 model Channel {
@@ -63,7 +63,7 @@ model Message {
   deleted   Boolean @default(false)
   isOwn     Boolean @default(false)
 
-  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -72,15 +72,15 @@ model Message {
 }
 
 model Group {
-  id          String   @id
-  name        String
-  image       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  ownerId     String
-  owner       Profile? @relation("OwnerGroups", fields: [ownerId], references: [id], onDelete: Cascade)
-  messages GroupMessage[]
-  members GroupMember[] // New relation for many-to-many
+  id        String         @id
+  name      String
+  image     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  ownerId   String
+  owner     Profile?       @relation("OwnerGroups", fields: [ownerId], references: [id], onDelete: Cascade)
+  messages  GroupMessage[]
+  members   GroupMember[] // New relation for many-to-many
 }
 
 model GroupMember {
@@ -121,7 +121,7 @@ model Conversation {
 model DirectMessage {
   id      String  @id @default(uuid())
   content String  @db.Text
-  fileUrl String? @db.Text
+  files Json?
 
   memberId String
 
@@ -139,12 +139,11 @@ model DirectMessage {
 model GroupMessage {
   id      String  @id @default(uuid())
   content String  @db.Text
-  fileUrl String? @db.Text
+  files Json?
 
   memberId String
-
-  groupId String
-  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId  String
+  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   deleted   Boolean  @default(false)
   createdAt DateTime @default(now())
