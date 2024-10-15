@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const createGroup = async (req, res) => {
   try {
-    const { name, description, ownerId, members } = req.body
+    const { name, ownerId, members } = req.body
     const toObjectMembers = JSON.parse(members)
 
     const idWithMinus = `-1${uuidv4()}`;
@@ -11,8 +11,7 @@ const createGroup = async (req, res) => {
       data: {
         id: idWithMinus,
         name,
-        description,
-        image: req.file.filename,
+        image: '123',
         ownerId,
         members: {
           create: toObjectMembers.map(user => ({
@@ -29,4 +28,20 @@ const createGroup = async (req, res) => {
   }
 }
 
-module.exports = { createGroup }
+const getUserGroups = async (req, res) => {
+  try {
+    const { userId } = req.params
+    const userGroups = await prisma.group.findMany({
+      where: {
+        members: { some: { memberId: userId } },
+      },
+    });
+
+    return res.status(200).json(userGroups);
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ message: 'An error occurred while getting user groups' });
+  }
+}
+
+module.exports = { createGroup, getUserGroups }
