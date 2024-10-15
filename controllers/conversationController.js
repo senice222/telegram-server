@@ -184,8 +184,8 @@ const sendDirectMessage = async (req, res) => {
     const { profileId, conversationId } = req.query;
     const { content, type } = req.body;
     const files = req.files; 
-
-    if (!content) {
+    console.log(files, 228)
+    if (!content && !files) {
       return res.status(400).json({ message: "Content missing" });
     }
   

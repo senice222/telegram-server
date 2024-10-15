@@ -58,7 +58,7 @@ model ChannelMember {
 model Message {
   id        String  @id @default(uuid())
   content   String  @db.Text
-  fileUrl   String? @db.Text
+  files   Json?
   channelId String
   deleted   Boolean @default(false)
   isOwn     Boolean @default(false)

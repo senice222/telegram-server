@@ -2,7 +2,7 @@ const {prisma} = require('../lib/prisma');
 
 const createChannel = async (req, res) => {
     const {name, description, ownerId} = req.body;
-
+    console.log(req.file)
     try {
         const channel = await prisma.channel.create({
             data: {
@@ -112,19 +112,20 @@ const getChannelById = async (req, res) => {
 
 const sendMessage = async (req, res) => {
     const {profileId, channelId} = req.query;
-    const {content} = req.body;
-    // const file = req.file.filename
-
-    if (!content) {
+    const {content, type} = req.body;
+    const files = req.files; 
+    if (!content && !files) {
         return res.status(400).json({message: "Content missing"});
     }
 
     try {
+        const fileUrls = files ? files.map(file => file.filename) : [];
         const currentUser = await prisma.profile.findUnique({
             where: {
                 id: profileId
             }
         })
+        const fileData = { type, fileUrls };
 
         if (!currentUser) {
             return res.status(404).json({error: "User not found"});
@@ -145,7 +146,7 @@ const sendMessage = async (req, res) => {
         const newMessage = await prisma.message.create({
             data: {
                 content,
-                fileUrl: "123",
+                files: fileData,
                 channelId
             }
         });

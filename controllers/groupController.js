@@ -5,13 +5,14 @@ const createGroup = async (req, res) => {
   try {
     const { name, ownerId, members } = req.body
     const toObjectMembers = JSON.parse(members)
-
     const idWithMinus = `-1${uuidv4()}`;
+    const imagePath = req.file ? req.file.filename : ""
+
     const newGroup = await prisma.group.create({
       data: {
         id: idWithMinus,
         name,
-        image: '123',
+        image: imagePath,
         ownerId,
         members: {
           create: toObjectMembers.map(user => ({
