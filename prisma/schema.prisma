@@ -58,12 +58,12 @@ model ChannelMember {
 model Message {
   id        String  @id @default(uuid())
   content   String  @db.Text
-  files   Json?
+  files     Json?
   channelId String
   deleted   Boolean @default(false)
   isOwn     Boolean @default(false)
 
-  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -80,6 +80,7 @@ model Group {
   ownerId   String
   owner     Profile?       @relation("OwnerGroups", fields: [ownerId], references: [id], onDelete: Cascade)
   messages  GroupMessage[]
+  type      String         @default("group")
   members   GroupMember[] // New relation for many-to-many
 }
 
@@ -119,9 +120,9 @@ model Conversation {
 }
 
 model DirectMessage {
-  id      String  @id @default(uuid())
-  content String  @db.Text
-  files Json?
+  id      String @id @default(uuid())
+  content String @db.Text
+  files   Json?
 
   memberId String
 
@@ -137,9 +138,9 @@ model DirectMessage {
 }
 
 model GroupMessage {
-  id      String  @id @default(uuid())
-  content String  @db.Text
-  files Json?
+  id      String @id @default(uuid())
+  content String @db.Text
+  files   Json?
 
   memberId String
   groupId  String

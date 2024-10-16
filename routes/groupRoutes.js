@@ -1,9 +1,10 @@
 const express = require('express');
 const groupRoute = express.Router();
-const { createGroup, getUserGroups } = require('../controllers/groupController');
+const { createGroup, getUserGroups, getGroupById } = require('../controllers/groupController');
 const upload = require('../middleware/multerMiddleware');
 
 groupRoute.post('/group', upload.single('image'),  createGroup);
 groupRoute.get('/groups', getUserGroups);
+groupRoute.get('/group/:id', getGroupById);
 
 module.exports = groupRoute;

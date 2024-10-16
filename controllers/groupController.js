@@ -45,4 +45,24 @@ const getUserGroups = async (req, res) => {
   }
 }
 
-module.exports = { createGroup, getUserGroups }
+const getGroupById = async (req, res) => {
+  try {
+    const { id } = req.params
+    const group = await prisma.group.findUnique({
+      where: {
+        id,
+      },
+      include: {
+        owner: true,
+        members: true,
+        messages: true,
+      },
+    });
+    return res.status(200).json(group);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'An error occurred while getting group by ID' });
+  }
+}
+
+module.exports = { createGroup, getUserGroups, getGroupById }
