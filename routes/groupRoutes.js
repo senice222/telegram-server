@@ -4,7 +4,7 @@ const { createGroup, getUserGroups, getGroupById } = require('../controllers/gro
 const upload = require('../middleware/multerMiddleware');
 
 groupRoute.post('/group', upload.single('image'),  createGroup);
-groupRoute.get('/groups', getUserGroups);
+groupRoute.get('/groups/:userId', getUserGroups);
 groupRoute.get('/group/:id', getGroupById);
 
 module.exports = groupRoute;

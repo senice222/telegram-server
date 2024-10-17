@@ -29,6 +29,9 @@ const createGroup = async (req, res) => {
           })),
         },
       },
+      include: {
+        members: true,
+      },
     });
 
     return res.status(200).json(newGroup);
