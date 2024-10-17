@@ -8,6 +8,15 @@ const createGroup = async (req, res) => {
     const idWithMinus = `-1${uuidv4()}`;
     const imagePath = req.file ? req.file.filename : ""
 
+    const currentUser = await prisma.profile.findUnique({
+      where: {
+        id: ownerId
+      }
+    })
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const membersWithOwner = [currentUser, ...toObjectMembers]
     const newGroup = await prisma.group.create({
       data: {
         id: idWithMinus,
@@ -15,7 +24,7 @@ const createGroup = async (req, res) => {
         image: imagePath,
         ownerId,
         members: {
-          create: toObjectMembers.map(user => ({
+          create: membersWithOwner.map(user => ({
             memberId: user.id,
           })),
         },

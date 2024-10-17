@@ -196,7 +196,7 @@ const sendDirectMessage = async (req, res) => {
         where: { id: profileId },
       });
   
-      const fileData = { type, fileUrls };
+      const fileData = { type, fileUrls : files };
   
       if (!currentUser) {
         return res.status(404).json({ error: "User not found" });
