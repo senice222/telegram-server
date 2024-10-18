@@ -116,9 +116,62 @@ const updateUserLastSeen = async (req, res) => {
 
 };
 
+const getUserChats = async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        const channels = await prisma.channel.findMany({
+            where: { members: { some: { profileId: userId } } },
+            include: {
+                members: {
+                    include: {
+                        profile: true, 
+                    },
+                },
+                messages: true,
+                owner: true, 
+            },
+        });
+
+        const groups = await prisma.group.findMany({
+            where: { members: { some: { memberId: userId } } },
+            include: {
+                members: {
+                    include: {
+                        profile: true, 
+                    },
+                },
+                messages: true, 
+                owner: true, 
+            },
+        });
+
+        const conversations = await prisma.conversation.findMany({
+            where: {
+                OR: [
+                    { memberOneId: userId },
+                    { memberTwoId: userId },
+                ],
+            },
+            include: {
+                memberOne: true,
+                memberTwo: true,
+                directMessages: true, 
+            },
+        });
+        const allChats = [...channels, ...groups, ...conversations];
+
+        res.status(200).json(allChats);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching chats', error });
+    }
+};
+
+
 module.exports = {
     getUserById,
     createUser,
     updateUserLastSeen,
-    getUserByPrismaId
+    getUserByPrismaId,
+    getUserChats
 };

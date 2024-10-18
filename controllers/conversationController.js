@@ -113,7 +113,7 @@ const getConversationById = async (req, res) => {
 
 const getConversationMessages = async (req, res) => {
   try {
-    const MESSAGE_BATCH = 10;
+    const MESSAGE_BATCH = 30;
     const { cursor, conversationId } = req.query;
 
     if (!conversationId) {
@@ -181,65 +181,70 @@ const getConversationMessages = async (req, res) => {
 };
 
 const sendDirectMessage = async (req, res) => {
-    const { profileId, conversationId } = req.query;
-    const { content, type } = req.body;
-    const files = req.files; 
+  const { profileId, conversationId } = req.query;
+  const { content, type } = req.body;
+  const files = req.files;
 
-    if (!content && !files) {
-      return res.status(400).json({ message: "Content missing" });
+  if (!content && !files) {
+    return res.status(400).json({ message: "Content missing" });
+  }
+
+  try {
+    const currentUser = await prisma.profile.findUnique({
+      where: { id: profileId },
+    });
+
+    const fileData = { type, fileUrls: files };
+
+    if (!currentUser) {
+      return res.status(404).json({ error: "User not found" });
     }
-  
-    try {
-      const fileUrls = files ? files.map(file => file.filename) : [];
-  
-      const currentUser = await prisma.profile.findUnique({
-        where: { id: profileId },
-      });
-  
-      const fileData = { type, fileUrls : files };
-  
-      if (!currentUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
-  
-      const conversation = await prisma.conversation.findUnique({
-        where: { id: conversationId },
-        include: {
-          memberOne: true,
-          memberTwo: true,
-        },
-      });
-  
-      if (!conversation) {
-        return res.status(404).json({ error: "Conversation not found" });
-      }
-  
-      const isParticipant =
-        conversation.memberOneId === profileId ||
-        conversation.memberTwoId === profileId;
-  
-      if (!isParticipant) {
-        return res
-          .status(403)
-          .json({ error: "You are not a participant in this conversation" });
-      }
-  
-      const newDirectMessage = await prisma.directMessage.create({
-        data: {
-          content: content,
-          files: fileData, 
-          memberId: profileId,
-          conversationId,
-        },
-      });
-      res.status(200).json(newDirectMessage);
-    } catch (error) {
-      console.error("Error while sending direct message:", error);
-      res
-        .status(500)
-        .json({ error: "Server error while sending direct message" });
+
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: {
+        memberOne: true,
+        memberTwo: true,
+      },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
     }
-  };
+
+    const isParticipant =
+      conversation.memberOneId === profileId ||
+      conversation.memberTwoId === profileId;
+
+    if (!isParticipant) {
+      return res
+        .status(403)
+        .json({ error: "You are not a participant in this conversation" });
+    }
+
+    const newDirectMessage = await prisma.directMessage.create({
+      data: {
+        content: content,
+        files: fileData,
+        memberId: profileId,
+        conversationId,
+      },
+    });
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        lastMessage: content,
+      },
+    })
+    res.status(200).json(newDirectMessage);
+  } catch (error) {
+    console.error("Error while sending direct message:", error);
+    res
+      .status(500)
+      .json({ error: "Server error while sending direct message" });
+  }
+};
+
 
 module.exports = {
   createConversationIfNotExists,

@@ -30,6 +30,7 @@ model Profile {
   conversationsInitiated Conversation[]  @relation("ProfileOne")
   conversationsReceived  Conversation[]  @relation("ProfileTwo")
   groups                 Group[]         @relation("OwnerGroups")
+  GroupMember            GroupMember[]
 }
 
 model Channel {
@@ -44,6 +45,7 @@ model Channel {
   owner       Profile?        @relation("OwnerChannels", fields: [ownerId], references: [id], onDelete: Cascade)
   ownerId     String? // Channel owner who created it
   type        String          @default("channel")
+  lastMessage String          @default("")
 }
 
 model ChannelMember {
@@ -72,23 +74,25 @@ model Message {
 }
 
 model Group {
-  id        String         @id
-  name      String
-  image     String?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  ownerId   String
-  owner     Profile?       @relation("OwnerGroups", fields: [ownerId], references: [id], onDelete: Cascade)
-  messages  GroupMessage[]
-  type      String         @default("group")
-  members   GroupMember[] // New relation for many-to-many
+  id          String         @id
+  name        String
+  image       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  ownerId     String
+  owner       Profile?       @relation("OwnerGroups", fields: [ownerId], references: [id], onDelete: Cascade)
+  messages    GroupMessage[]
+  type        String         @default("group")
+  members     GroupMember[] // New relation for many-to-many
+  lastMessage String         @default("")
 }
 
 model GroupMember {
-  id       String @id @default(uuid())
+  id       String  @id @default(uuid())
   groupId  String
   memberId String
-  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group    Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  profile  Profile @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
 
 // model Member {
@@ -114,6 +118,7 @@ model Conversation {
   memberTwo      Profile         @relation("ProfileTwo", fields: [memberTwoId], references: [id], onDelete: Cascade)
   type           String          @default("conversation")
   directMessages DirectMessage[]
+  lastMessage    String          @default("")
 
   @@unique([memberOneId, memberTwoId])
   @@index([memberTwoId])

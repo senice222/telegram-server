@@ -119,7 +119,6 @@ const sendMessage = async (req, res) => {
     }
 
     try {
-        const fileUrls = files ? files.map(file => file.filename) : [];
         const currentUser = await prisma.profile.findUnique({
             where: {
                 id: profileId
@@ -150,7 +149,12 @@ const sendMessage = async (req, res) => {
                 channelId
             }
         });
-
+        await prisma.channel.update({
+            where: { id: channelId },
+            data: {
+              lastMessage: content,
+            },
+          })
         res.status(200).json(newMessage);
     } catch (error) {
         console.error("Error while sending message:", error);
@@ -160,7 +164,7 @@ const sendMessage = async (req, res) => {
 
 const getChannelMessages = async (req, res) => {
     try {
-        const MESSAGE_BATCH = 15
+        const MESSAGE_BATCH = 30
         const {cursor, channelId} = req.query;
         if (!channelId) {
             return res.status(400).json({message: 'Channel ID missing'});
