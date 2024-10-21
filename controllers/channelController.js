@@ -228,6 +228,8 @@ const getChannelMessages = async (req, res) => {
         return res.status(200).json({
             items: messages,
             nextCursor,
+            media: '15 sm s yaycami'
+
         });
     } catch (error) {
         console.error('MESSAGE_ERROR', error);

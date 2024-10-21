@@ -123,26 +123,18 @@ const getUserChats = async (req, res) => {
         const channels = await prisma.channel.findMany({
             where: { members: { some: { profileId: userId } } },
             include: {
-                members: {
-                    include: {
-                        profile: true, 
-                    },
-                },
-                messages: true,
-                owner: true, 
+                members: { include: { profile: true } },
+                messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+                owner: true,
             },
         });
 
         const groups = await prisma.group.findMany({
             where: { members: { some: { memberId: userId } } },
             include: {
-                members: {
-                    include: {
-                        profile: true, 
-                    },
-                },
-                messages: true, 
-                owner: true, 
+                members: { include: { profile: true } },
+                messages: { orderBy: { createdAt: 'desc' }, take: 1 }, 
+                owner: true,
             },
         });
 
@@ -156,16 +148,40 @@ const getUserChats = async (req, res) => {
             include: {
                 memberOne: true,
                 memberTwo: true,
-                directMessages: true, 
+                directMessages: { orderBy: { createdAt: 'desc' }, take: 1 }, 
             },
         });
+
         const allChats = [...channels, ...groups, ...conversations];
 
-        res.status(200).json(allChats);
+        const sortedChats = allChats.sort((a, b) => {
+            const aLastMessage = a.messages?.[0]?.createdAt || a.directMessages?.[0]?.createdAt || a.groupMessages?.[0]?.createdAt;
+            const bLastMessage = b.messages?.[0]?.createdAt || b.directMessages?.[0]?.createdAt || b.groupMessages?.[0]?.createdAt;
+
+            return new Date(bLastMessage) - new Date(aLastMessage);
+        });
+
+        res.status(200).json(sortedChats);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching chats', error });
     }
 };
+
+const changeUserOnline = async (req, res) => {
+    const { id } = req.params;
+    const { online } = req.body;
+
+    try {
+        await prisma.profile.update({
+            where: { id },
+            data: { online }
+        });
+        res.status(200).json({ message: "status updated" });
+    } catch (e) {
+        console.log("error during updating status:", e)
+        res.status(500).json({ message: "error updating status" });
+    }
+}
 
 
 module.exports = {
@@ -173,5 +189,6 @@ module.exports = {
     createUser,
     updateUserLastSeen,
     getUserByPrismaId,
-    getUserChats
+    getUserChats,
+    changeUserOnline
 };

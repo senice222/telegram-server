@@ -164,6 +164,47 @@ const getConversationMessages = async (req, res) => {
       });
     }
 
+    // Определим объект, который будет содержать нужные поля
+    const categorizedMessages = {
+      media: [],
+      files: [],
+      links: [],
+    };
+
+    // Регулярное выражение для поиска ссылок
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+    // Проходим по каждому сообщению и классифицируем их
+    messages.forEach((message) => {
+      // Проверка на наличие файлов и их тип
+      if (message.files) {
+        let parsedFiles;
+
+        // Проверяем, является ли message.files строкой или объектом
+        if (typeof message.files === "string") {
+          try {
+            parsedFiles = JSON.parse(message.files); // Парсим, если это строка
+          } catch (error) {
+            console.error("Error parsing JSON", error);
+          }
+        } else {
+          parsedFiles = message.files; // Если это объект, просто используем его
+        }
+
+        // Если удалось успешно получить объект файлов
+        if (parsedFiles?.type === "imgs") {
+          categorizedMessages.media.push(message);
+        } else if (parsedFiles?.type === "files") {
+          categorizedMessages.files.push(message);
+        }
+      }
+
+      // Проверка на наличие ссылки в контенте
+      if (urlRegex.test(message.content)) {
+        categorizedMessages.links.push(message);
+      }
+    });
+
     let nextCursor = null;
 
     if (messages.length === MESSAGE_BATCH) {
@@ -171,7 +212,8 @@ const getConversationMessages = async (req, res) => {
     }
 
     return res.status(200).json({
-      items: messages,
+      items: messages, // Возвращаем сами сообщения
+      categorizedMessages, // Возвращаем отдельно объект с классифицированными сообщениями
       nextCursor,
     });
   } catch (error) {
@@ -179,6 +221,8 @@ const getConversationMessages = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+
 
 const sendDirectMessage = async (req, res) => {
   const { profileId, conversationId } = req.query;
@@ -229,6 +273,9 @@ const sendDirectMessage = async (req, res) => {
         memberId: profileId,
         conversationId,
       },
+      include: {
+        conversation: true
+      }
     });
     await prisma.conversation.update({
       where: { id: conversationId },
@@ -245,6 +292,41 @@ const sendDirectMessage = async (req, res) => {
   }
 };
 
+const updateMessage = async (req, res) => {
+  const { id } = req.params;
+  const { content } = req.body;
+  try {
+    const updatedMessage = await prisma.directMessage.update({
+      where: { id },
+      data: { content },
+    });
+    res.status(200).json(updatedMessage);
+  } catch (error) {
+    console.error("Error while updating message:", error);
+    res
+      .status(500)
+      .json({ error: "Server error while updating message" });
+  }
+}
+
+const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params
+    const message = await prisma.directMessage.update({
+      where: {
+        id: messageId,
+      },
+      data: {
+        files: null,
+        content: 'This message has been deleted',
+        deleted: true,
+      }
+    });
+    res.status(200).json(message);
+  } catch (e) {
+    console.log(e, "failed to delete message")
+  }
+}
 
 module.exports = {
   createConversationIfNotExists,
@@ -252,4 +334,6 @@ module.exports = {
   getConversationById,
   getConversationMessages,
   sendDirectMessage,
+  updateMessage,
+  deleteMessage
 };

@@ -31,6 +31,7 @@ model Profile {
   conversationsReceived  Conversation[]  @relation("ProfileTwo")
   groups                 Group[]         @relation("OwnerGroups")
   GroupMember            GroupMember[]
+  online                 String          @default("last seen recently")
 }
 
 model Channel {
@@ -94,21 +95,6 @@ model GroupMember {
   group    Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
   profile  Profile @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
-
-// model Member {
-//   id        String @id @default(uuid())
-//   profileId String
-
-//   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-//   conversationsInitiated Conversation[] @relation("MemberOne")
-//   conversationsReceived  Conversation[] @relation("MemberTwo")
-
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
-
-//   @@index([profileId])
-// }
 
 model Conversation {
   id             String          @id @default(uuid())
