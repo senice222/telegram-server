@@ -140,6 +140,46 @@ const getGroupMessages = async (req, res) => {
       });
     }
 
+    const categorizedMessages = {
+      media: [],
+      files: [],
+      links: [],
+    };
+
+    // Регулярное выражение для поиска ссылок
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+    // Проходим по каждому сообщению и классифицируем их
+    messages.forEach((message) => {
+      // Проверка на наличие файлов и их тип
+      if (message.files) {
+        let parsedFiles;
+
+        // Проверяем, является ли message.files строкой или объектом
+        if (typeof message.files === "string") {
+          try {
+            parsedFiles = JSON.parse(message.files); // Парсим, если это строка
+          } catch (error) {
+            console.error("Error parsing JSON", error);
+          }
+        } else {
+          parsedFiles = message.files; // Если это объект, просто используем его
+        }
+
+        // Если удалось успешно получить объект файлов
+        if (parsedFiles?.type === "imgs") {
+          categorizedMessages.media.push(message);
+        } else if (parsedFiles?.type === "files") {
+          categorizedMessages.files.push(message);
+        }
+      }
+
+      // Проверка на наличие ссылки в контенте
+      if (urlRegex.test(message.content)) {
+        categorizedMessages.links.push(message);
+      }
+    });
+
     let nextCursor = null;
 
     if (messages.length === MESSAGE_BATCH) {
@@ -147,6 +187,7 @@ const getGroupMessages = async (req, res) => {
     }
 
     return res.status(200).json({
+      categorizedMessages,
       items: messages,
       nextCursor,
     });
@@ -173,7 +214,6 @@ const sendMessage = async (req, res) => {
     if (!currentUser) {
       return res.status(404).json({ error: "User not found" });
     }
-    console.log(groupId)
     const groupExists = await prisma.group.findUnique({
       where: { id: groupId },
       include: {
