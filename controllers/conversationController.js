@@ -78,38 +78,6 @@ const getConversationById = async (req, res) => {
   }
 };
 
-// const sendMessageInConversation = async (req, res) => {
-//     const { conversationId } = req.query;
-//     const { content, fileUrl, memberId } = req.body;
-
-//     if (!conversationId) {
-//         return res.status(400).json({ error: "Conversation ID is required" });
-//     }
-
-//     try {
-//         const conversation = await prisma.conversation.findUnique({
-//             where: { id: conversationId }
-//         });
-
-//         if (!conversation) {
-//             return res.status(404).json({ error: "Conversation not found" });
-//         }
-
-//         const message = await prisma.directMessage.create({
-//             data: {
-//                 content,
-//                 fileUrl,
-//                 memberId,
-//                 conversationId: conversation.id,
-//             }
-//         });
-
-//         res.status(200).json({ message: "Message sent", message });
-//     } catch (error) {
-//         console.log(error, "Error sending message");
-//         res.status(500).json({ error: "Failed to send message" });
-//     }
-// };
 
 const getConversationMessages = async (req, res) => {
   try {
@@ -139,6 +107,12 @@ const getConversationMessages = async (req, res) => {
               memberTwo: true,
             },
           },
+          replyToMessage: {
+            include: {
+              ownerProfile: true, // Включаем данные профиля для сообщения, на которое идет ответ
+            },
+          },
+          ownerProfile: true
         },
         orderBy: {
           createdAt: "desc",
@@ -157,6 +131,12 @@ const getConversationMessages = async (req, res) => {
               memberTwo: true,
             },
           },
+          replyToMessage: {
+            include: {
+              ownerProfile: true, // Включаем данные профиля для сообщения, на которое идет ответ
+            },
+          },
+          ownerProfile: true
         },
         orderBy: {
           createdAt: "desc",
@@ -164,34 +144,28 @@ const getConversationMessages = async (req, res) => {
       });
     }
 
-    // Определим объект, который будет содержать нужные поля
     const categorizedMessages = {
       media: [],
       files: [],
       links: [],
     };
 
-    // Регулярное выражение для поиска ссылок
     const urlRegex = /(https?:\/\/[^\s]+)/g;
 
-    // Проходим по каждому сообщению и классифицируем их
     messages.forEach((message) => {
-      // Проверка на наличие файлов и их тип
       if (message.files) {
         let parsedFiles;
 
-        // Проверяем, является ли message.files строкой или объектом
         if (typeof message.files === "string") {
           try {
-            parsedFiles = JSON.parse(message.files); // Парсим, если это строка
+            parsedFiles = JSON.parse(message.files);
           } catch (error) {
             console.error("Error parsing JSON", error);
           }
         } else {
-          parsedFiles = message.files; // Если это объект, просто используем его
+          parsedFiles = message.files;
         }
 
-        // Если удалось успешно получить объект файлов
         if (parsedFiles?.type === "imgs") {
           categorizedMessages.media.push(message);
         } else if (parsedFiles?.type === "files") {
@@ -199,7 +173,6 @@ const getConversationMessages = async (req, res) => {
         }
       }
 
-      // Проверка на наличие ссылки в контенте
       if (urlRegex.test(message.content)) {
         categorizedMessages.links.push(message);
       }
@@ -212,8 +185,8 @@ const getConversationMessages = async (req, res) => {
     }
 
     return res.status(200).json({
-      items: messages, // Возвращаем сами сообщения
-      categorizedMessages, // Возвращаем отдельно объект с классифицированными сообщениями
+      items: messages, 
+      categorizedMessages, 
       nextCursor,
     });
   } catch (error) {
@@ -222,11 +195,9 @@ const getConversationMessages = async (req, res) => {
   }
 };
 
-
-
 const sendDirectMessage = async (req, res) => {
   const { profileId, conversationId } = req.query;
-  const { content, type } = req.body;
+  const { content, type, reply } = req.body;
   const files = req.files;
 
   if (!content && !files) {
@@ -265,16 +236,26 @@ const sendDirectMessage = async (req, res) => {
         .status(403)
         .json({ error: "You are not a participant in this conversation" });
     }
+    const data = {
+      content: content,
+      files: fileData,
+      memberId: profileId,
+      conversationId,
+    }
+
+    if (reply) {
+      data.replyId = reply
+    }
 
     const newDirectMessage = await prisma.directMessage.create({
-      data: {
-        content: content,
-        files: fileData,
-        memberId: profileId,
-        conversationId,
-      },
+      data,
       include: {
-        conversation: true
+        conversation: true,
+        replyToMessage: {
+          include: {
+            ownerProfile: true,
+          },
+        }
       }
     });
     await prisma.conversation.update({

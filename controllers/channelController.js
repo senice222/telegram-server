@@ -2,7 +2,7 @@ const { prisma } = require("../lib/prisma");
 
 const createChannel = async (req, res) => {
   const { name, description, ownerId } = req.body;
-  console.log(req.file);
+
   try {
     const channel = await prisma.channel.create({
       data: {
@@ -112,7 +112,7 @@ const getChannelById = async (req, res) => {
 
 const sendMessage = async (req, res) => {
   const { profileId, channelId } = req.query;
-  const { content, type } = req.body;
+  const { content, type, reply } = req.body;
   const files = req.files;
   if (!content && !files) {
     return res.status(400).json({ message: "Content missing" });
@@ -143,13 +143,24 @@ const sendMessage = async (req, res) => {
         .status(403)
         .json({ error: "You are not the owner of this channel" });
     }
-
+    let data = {
+      content,
+      files: fileData,
+      channelId,
+      ownerId: currentUser.id
+    }
+    if (reply) {
+      data.replyId = reply
+    }
     const newMessage = await prisma.message.create({
-      data: {
-        content,
-        files: fileData,
-        channelId,
-      },
+      data,
+      include: {
+        replyToMessage: {
+          include: {
+            ownerProfile: true,
+          },
+        }
+      }
     });
     await prisma.channel.update({
       where: { id: channelId },
@@ -194,6 +205,12 @@ const getChannelMessages = async (req, res) => {
               },
             },
           },
+          replyToMessage: {
+            include: {
+              ownerProfile: true, // Включаем данные профиля для сообщения, на которое идет ответ
+            },
+          },
+          ownerProfile: true
         },
         orderBy: {
           createdAt: "desc",
@@ -215,6 +232,12 @@ const getChannelMessages = async (req, res) => {
               },
             },
           },
+          replyToMessage: {
+            include: {
+              ownerProfile: true, // Включаем данные профиля для сообщения, на которое идет ответ
+            },
+          },
+          ownerProfile: true
         },
         orderBy: {
           createdAt: "desc",

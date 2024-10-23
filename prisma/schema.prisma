@@ -32,6 +32,9 @@ model Profile {
   groups                 Group[]         @relation("OwnerGroups")
   GroupMember            GroupMember[]
   online                 String          @default("last seen recently")
+  DirectMessage          DirectMessage[]
+  GroupMessage           GroupMessage[]
+  Message                Message[]
 }
 
 model Channel {
@@ -59,12 +62,19 @@ model ChannelMember {
 }
 
 model Message {
-  id        String  @id @default(uuid())
-  content   String  @db.Text
-  files     Json?
-  channelId String
-  deleted   Boolean @default(false)
-  isOwn     Boolean @default(false)
+  id           String  @id @default(uuid())
+  content      String  @db.Text
+  files        Json?
+  channelId    String
+  deleted      Boolean @default(false)
+  ownerId      String  
+  ownerProfile Profile @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  
+  replyId String? // Поле для хранения ссылки на сообщение, на которое идет ответ (опциональное)
+
+  replyToMessage Message? @relation("Reply", fields: [replyId], references: [id], onDelete: NoAction, onUpdate: NoAction) // Самоссылочная связь
+
+  replies Message[] @relation("Reply") // Сообщения, которые отвечают на текущее
 
   channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
@@ -115,10 +125,15 @@ model DirectMessage {
   content String @db.Text
   files   Json?
 
-  memberId String
-
+  memberId       String
+  ownerProfile   Profile      @relation(fields: [memberId], references: [id], onDelete: Cascade)
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  replyId        String? // Поле для хранения ссылки на сообщение, на которое идет ответ (опциональное)
+  replyToMessage DirectMessage? @relation("Reply", fields: [replyId], references: [id], onDelete: NoAction, onUpdate: NoAction) // Самоссылочная связь
+
+  replies DirectMessage[] @relation("Reply") // Сообщения, которые отвечают на текущее
 
   deleted   Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -133,9 +148,14 @@ model GroupMessage {
   content String @db.Text
   files   Json?
 
-  memberId String
-  groupId  String
-  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  memberId       String
+  ownerProfile   Profile       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  groupId        String
+  group          Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  replyId        String? // Поле для хранения ссылки на сообщение, на которое идет ответ (опциональное)
+  replyToMessage GroupMessage? @relation("Reply", fields: [replyId], references: [id], onDelete: NoAction, onUpdate: NoAction) // Самоссылочная связь
+
+  replies GroupMessage[] @relation("Reply") // Сообщения, которые отвечают на текущее
 
   deleted   Boolean  @default(false)
   createdAt DateTime @default(now())

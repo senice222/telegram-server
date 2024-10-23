@@ -112,6 +112,12 @@ const getGroupMessages = async (req, res) => {
               },
             },
           },
+          replyToMessage: {
+            include: {
+              ownerProfile: true, // Включаем данные профиля для сообщения, на которое идет ответ
+            },
+          },
+          ownerProfile: true
         },
         orderBy: {
           createdAt: 'desc',
@@ -133,6 +139,12 @@ const getGroupMessages = async (req, res) => {
               },
             },
           },
+          replyToMessage: {
+            include: {
+              ownerProfile: true, // Включаем данные профиля для сообщения, на которое идет ответ
+            },
+          },
+          ownerProfile: true
         },
         orderBy: {
           createdAt: 'desc',
@@ -199,7 +211,7 @@ const getGroupMessages = async (req, res) => {
 
 const sendMessage = async (req, res) => {
   const { profileId, groupId } = req.query;
-  const { content, type } = req.body;
+  const { content, type, reply } = req.body;
   const files = req.files;
 
   if (!content && !files) {
@@ -234,14 +246,29 @@ const sendMessage = async (req, res) => {
     }
 
     const fileData = { type, fileUrls: files };
-
+    let data = {
+      content,
+      files: fileData,
+      groupId,
+      memberId: currentUser.id
+    }
+    if (reply) {
+      data.replyId = reply
+    }
     const newMessage = await prisma.groupMessage.create({
-      data: {
-        content,
-        files: fileData,
-        groupId,
-        memberId: currentUser.id
-      }
+      data,
+      include: {
+        group: {
+          include: {
+            members: true
+          },
+        },
+        replyToMessage: {
+          include: {
+            ownerProfile: true,
+          },
+        }
+      },
     });
     await prisma.group.update({
       where: { id: groupId },
