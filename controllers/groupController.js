@@ -1,7 +1,7 @@
 const { prisma } = require('../lib/prisma');
 const { v4: uuidv4 } = require('uuid');
 
-const createGroup = async (req, res) => {
+const createGroup = async (req, res, aWss) => {
   try {
     const { name, ownerId, members } = req.body
     const toObjectMembers = JSON.parse(members)
@@ -32,6 +32,15 @@ const createGroup = async (req, res) => {
       include: {
         members: true,
       },
+    });
+    newGroup.members.forEach((member) => {
+      const groupKey = `group:${member.memberId}:created`;
+      aWss.clients.forEach((client) => {
+        if (client.readyState === 1 && client.clientId === member.memberId) {
+          console.log({ key: groupKey, newGroup })
+          client.send(JSON.stringify({ key: groupKey, newGroup }));
+        }
+      });
     });
 
     return res.status(200).json(newGroup);
@@ -114,10 +123,11 @@ const getGroupMessages = async (req, res) => {
           },
           replyToMessage: {
             include: {
-              ownerProfile: true, // Включаем данные профиля для сообщения, на которое идет ответ
+              ownerProfile: true,
             },
           },
-          ownerProfile: true
+          ownerProfile: true,
+          readBy: true,
         },
         orderBy: {
           createdAt: 'desc',
@@ -141,10 +151,11 @@ const getGroupMessages = async (req, res) => {
           },
           replyToMessage: {
             include: {
-              ownerProfile: true, // Включаем данные профиля для сообщения, на которое идет ответ
+              ownerProfile: true,
             },
           },
-          ownerProfile: true
+          ownerProfile: true,
+          readBy: true,
         },
         orderBy: {
           createdAt: 'desc',
@@ -161,24 +172,20 @@ const getGroupMessages = async (req, res) => {
     // Регулярное выражение для поиска ссылок
     const urlRegex = /(https?:\/\/[^\s]+)/g;
 
-    // Проходим по каждому сообщению и классифицируем их
     messages.forEach((message) => {
-      // Проверка на наличие файлов и их тип
       if (message.files) {
         let parsedFiles;
 
-        // Проверяем, является ли message.files строкой или объектом
         if (typeof message.files === "string") {
           try {
-            parsedFiles = JSON.parse(message.files); // Парсим, если это строка
+            parsedFiles = JSON.parse(message.files);
           } catch (error) {
             console.error("Error parsing JSON", error);
           }
         } else {
-          parsedFiles = message.files; // Если это объект, просто используем его
+          parsedFiles = message.files;
         }
 
-        // Если удалось успешно получить объект файлов
         if (parsedFiles?.type === "imgs") {
           categorizedMessages.media.push(message);
         } else if (parsedFiles?.type === "files") {
@@ -186,7 +193,6 @@ const getGroupMessages = async (req, res) => {
         }
       }
 
-      // Проверка на наличие ссылки в контенте
       if (urlRegex.test(message.content)) {
         categorizedMessages.links.push(message);
       }
@@ -209,7 +215,7 @@ const getGroupMessages = async (req, res) => {
   }
 };
 
-const sendMessage = async (req, res) => {
+const sendMessage = async (req, res, aWss) => {
   const { profileId, groupId } = req.query;
   const { content, type, reply } = req.body;
   const files = req.files;
@@ -270,6 +276,20 @@ const sendMessage = async (req, res) => {
         }
       },
     });
+    const groupKey = `group:${groupId}:messages`;
+
+    aWss.clients.forEach((client) => {
+      if (client.readyState === 1) {
+        client.send(JSON.stringify({ key: groupKey, data: newMessage }));
+        newMessage.group.members.map(item => {
+          client.send(JSON.stringify({
+            key: `user:${item.memberId}:lastMessageUpdate`,
+            data: { groupId: newMessage.groupId, lastMessage: newMessage.content }
+          }));
+        })
+      }
+    });
+
     await prisma.group.update({
       where: { id: groupId },
       data: {
@@ -283,5 +303,52 @@ const sendMessage = async (req, res) => {
   }
 };
 
+const markGroupMessageAsRead = async (req, res, aWss) => {
+  try {
+    const { messageId } = req.params;
+    const { recipientId } = req.body;
 
-module.exports = { createGroup, getUserGroups, getGroupById, getGroupMessages, sendMessage }
+    const message = await prisma.groupMessage.findUnique({
+      where: { id: messageId },
+      include: { readBy: true },
+    });
+
+    if (!message) {
+      return res.status(404).json({ error: "Сообщение не найдено" });
+    }
+
+    const hasRead = message.readBy.some((user) => user.id === recipientId);
+    if (!hasRead) {
+      const updatedMessage = await prisma.groupMessage.update({
+        where: { id: messageId },
+        data: {
+          readBy: {
+            connect: { id: recipientId }, 
+          },
+        },
+      });
+
+      const readStatusKey = `message:${messageId}:read`;
+      
+      aWss.clients.forEach((client) => {
+        if (client.readyState === 1) {
+          client.send(JSON.stringify({
+            key: readStatusKey,
+            data: { messageId, readByUserId: recipientId },
+          }));
+        }
+      });
+
+      res.status(200).json(updatedMessage);
+    } else {
+      res.status(200).json({ message: "Сообщение уже отмечено как прочитанное этим пользователем" });
+    }
+  } catch (e) {
+    console.log("Ошибка при отметке сообщения как прочитанного", e);
+    res.status(500).json({ error: "Не удалось отметить сообщение как прочитанное" });
+  }
+};
+
+
+
+module.exports = { createGroup, getUserGroups, getGroupById, getGroupMessages, sendMessage, markGroupMessageAsRead }

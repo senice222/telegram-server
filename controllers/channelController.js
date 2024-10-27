@@ -110,7 +110,7 @@ const getChannelById = async (req, res) => {
   }
 };
 
-const sendMessage = async (req, res) => {
+const sendMessage = async (req, res, aWss) => {
   const { profileId, channelId } = req.query;
   const { content, type, reply } = req.body;
   const files = req.files;
@@ -160,6 +160,18 @@ const sendMessage = async (req, res) => {
             ownerProfile: true,
           },
         }
+      }
+    });
+    const channelKey = `channel:${channelId}:messages`;
+    const lastMessageKey = `user:${profileId}:lastMessageUpdate`;
+
+    aWss.clients.forEach((client) => {
+      if (client.readyState === 1) { 
+        client.send(JSON.stringify({ key: channelKey, data: newMessage }));
+        client.send(JSON.stringify({
+          key: lastMessageKey,
+          data: { channelId: newMessage.channelId, lastMessage: newMessage.content }
+        }));
       }
     });
     await prisma.channel.update({

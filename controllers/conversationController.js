@@ -185,8 +185,8 @@ const getConversationMessages = async (req, res) => {
     }
 
     return res.status(200).json({
-      items: messages, 
-      categorizedMessages, 
+      items: messages,
+      categorizedMessages,
       nextCursor,
     });
   } catch (error) {
@@ -195,7 +195,7 @@ const getConversationMessages = async (req, res) => {
   }
 };
 
-const sendDirectMessage = async (req, res) => {
+const sendDirectMessage = async (req, res, aWss) => {
   const { profileId, conversationId } = req.query;
   const { content, type, reply } = req.body;
   const files = req.files;
@@ -258,6 +258,25 @@ const sendDirectMessage = async (req, res) => {
         }
       }
     });
+    const conversationKey = `conversation:${conversationId}:messages`;
+    const memberOneUpdateKey = `user:${newDirectMessage.conversation.memberOneId}:lastMessageUpdate`;
+    const memberTwoUpdateKey = `user:${newDirectMessage.conversation.memberTwoId}:lastMessageUpdate`;
+
+    aWss.clients.forEach((client) => {
+      if (client.readyState === 1) {
+        client.send(JSON.stringify({ key: conversationKey, data: newDirectMessage }));
+
+        client.send(JSON.stringify({
+          key: memberOneUpdateKey,
+          data: { conversationId: newDirectMessage.conversationId, lastMessage: newDirectMessage.content }
+        }));
+        client.send(JSON.stringify({
+          key: memberTwoUpdateKey,
+          data: { conversationId: newDirectMessage.conversationId, lastMessage: newDirectMessage.content }
+        }));
+      }
+    });
+
     await prisma.conversation.update({
       where: { id: conversationId },
       data: {
@@ -309,6 +328,46 @@ const deleteMessage = async (req, res) => {
   }
 }
 
+const markMessageAsRead = async (req, res, aWss) => {
+  try {
+    const { messageId } = req.params;
+    const { userId, recipientId } = req.body;
+
+    const message = await prisma.directMessage.findUnique({
+      where: {
+        id: messageId,
+      },
+    });
+
+    if (message.memberId !== userId && message.memberId === recipientId) {
+      const updatedMessage = await prisma.directMessage.update({
+        where: {
+          id: messageId,
+        },
+        data: {
+          isRead: true,
+        },
+      });
+      const readStatusKey = `message:${messageId}:read`;
+      aWss.clients.forEach((client) => {
+        if (client.readyState === 1) {
+          client.send(JSON.stringify({
+            key: readStatusKey,
+            data: { messageId, isRead: true },
+          }));
+        }
+      });
+      res.status(200).json(updatedMessage);
+    } else {
+      res.status(403).json({ error: "Вы не можете отметить это сообщение как прочитанное." });
+    }
+  } catch (e) {
+    console.log(e, "Не удалось отметить сообщение как прочитанное собеседником");
+    res.status(500).json({ error: "Произошла ошибка" });
+  }
+};
+
+
 module.exports = {
   createConversationIfNotExists,
   getConversation,
@@ -316,5 +375,6 @@ module.exports = {
   getConversationMessages,
   sendDirectMessage,
   updateMessage,
-  deleteMessage
+  deleteMessage,
+  markMessageAsRead
 };

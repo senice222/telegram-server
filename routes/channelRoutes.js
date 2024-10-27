@@ -1,13 +1,23 @@
 const express = require('express');
-const channelRouter = express.Router();
 const upload = require('../middleware/multerMiddleware');
-const { createChannel, searchChannels, getChannelById, joinChannel, sendMessage, getChannelMessages } = require('../controllers/channelController');
+const {
+    createChannel,
+    searchChannels,
+    getChannelById,
+    joinChannel,
+    sendMessage,
+    getChannelMessages,
+} = require('../controllers/channelController');
 
-channelRouter.post('/channels', upload.single('image'), createChannel);
-channelRouter.get('/search', searchChannels);
-channelRouter.get('/channel/:channelId', getChannelById);
-channelRouter.get('/get-channel/messages', getChannelMessages);
-channelRouter.post('/channel/join', joinChannel);
-channelRouter.patch('/channel/message',upload.array('fileUrls'), sendMessage);
+module.exports = (aWss) => {
+    const channelRouter = express.Router();
 
-module.exports = channelRouter;
+    channelRouter.post('/channels', upload.single('image'), (req, res) => createChannel(req, res, aWss));
+    channelRouter.get('/search', (req, res) => searchChannels(req, res));
+    channelRouter.get('/channel/:channelId', (req, res) => getChannelById(req, res));
+    channelRouter.get('/get-channel/messages', (req, res) => getChannelMessages(req, res));
+    channelRouter.post('/channel/join', (req, res) => joinChannel(req, res));
+    channelRouter.post('/channel/messages', upload.array('fileUrls'), (req, res) => sendMessage(req, res, aWss));
+
+    return channelRouter;
+};

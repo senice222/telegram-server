@@ -1,12 +1,16 @@
 const express = require('express');
-const groupRoute = express.Router();
-const { createGroup, getUserGroups, getGroupById, getGroupMessages, sendMessage } = require('../controllers/groupController');
 const upload = require('../middleware/multerMiddleware');
+const { createGroup, getUserGroups, getGroupById, getGroupMessages, sendMessage, markGroupMessageAsRead } = require('../controllers/groupController');
 
-groupRoute.post('/group', upload.single('image'), createGroup);
-groupRoute.get('/groups/:userId', getUserGroups);
-groupRoute.get('/get-group/messages', getGroupMessages);
-groupRoute.get('/group/:id', getGroupById);
-groupRoute.patch('/group/message', upload.array('fileUrls'), sendMessage);
+module.exports = (aWss) => {
+    const groupRoute = express.Router();
 
-module.exports = groupRoute;
+    groupRoute.post('/group', upload.single('image'), (req, res) => createGroup(req, res, aWss));
+    groupRoute.get('/groups/:userId', (req, res) => getUserGroups(req, res, aWss));
+    groupRoute.get('/get-group/messages', (req, res) => getGroupMessages(req, res, aWss));
+    groupRoute.get('/group/:id', (req, res) => getGroupById(req, res, aWss));
+    groupRoute.post('/group/messages', upload.array('fileUrls'), (req, res) => sendMessage(req, res, aWss));
+    groupRoute.put('/messages-group/:messageId/markAsRead', (req, res) => markGroupMessageAsRead(req, res, aWss));
+
+    return groupRoute;
+};
