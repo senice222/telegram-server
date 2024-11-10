@@ -37,7 +37,6 @@ const createGroup = async (req, res, aWss) => {
       const groupKey = `group:${member.memberId}:created`;
       aWss.clients.forEach((client) => {
         if (client.readyState === 1 && client.clientId === member.memberId) {
-          console.log({ key: groupKey, newGroup })
           client.send(JSON.stringify({ key: groupKey, newGroup }));
         }
       });
@@ -49,6 +48,64 @@ const createGroup = async (req, res, aWss) => {
     return res.status(500).json({ message: 'An error occurred while creating the group' });
   }
 }
+const addUsersToGroup = async (req, res, aWss) => {
+  try {
+    const { groupId, members } = req.body;
+
+    const newMembers = JSON.parse(members);
+
+    const existingGroup = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: { members: true }
+    });
+
+    if (!existingGroup) {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+
+    const existingMemberIds = existingGroup.members.map(member => member.memberId);
+
+    const membersToAdd = newMembers.filter(user => !existingMemberIds.includes(user.id));
+    const memberToSend = newMembers
+      .filter(user => !existingMemberIds.includes(user.id))
+      .map(user => ({
+        memberId: user.id,
+        groupId: groupId,
+        profile: user
+      }));
+    if (membersToAdd.length === 0) {
+      return res.status(200).json({ message: 'No new members to add' });
+    }
+
+
+    const updatedGroup = await prisma.group.update({
+      where: { id: groupId },
+      data: {
+        members: {
+          create: membersToAdd.map(user => ({
+            memberId: user.id,
+          })),
+        },
+      },
+      include: { members: true }
+    });
+
+    updatedGroup.members.forEach((member) => {
+      const groupKey = `group:${member.memberId}:added`;
+      aWss.clients.forEach((client) => {
+        if (client.readyState === 1 && client.clientId === member.memberId) {
+          client.send(JSON.stringify({ key: groupKey, group: updatedGroup, member: memberToSend }));
+        }
+      });
+    });
+
+    return res.status(200).json({ message: 'Users added to the group successfully', group: updatedGroup, newMembers: memberToSend });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'An error occurred while adding users to the group' });
+  }
+};
 
 const getUserGroups = async (req, res) => {
   try {
@@ -323,13 +380,13 @@ const markGroupMessageAsRead = async (req, res, aWss) => {
         where: { id: messageId },
         data: {
           readBy: {
-            connect: { id: recipientId }, 
+            connect: { id: recipientId },
           },
         },
       });
 
       const readStatusKey = `message:${messageId}:read`;
-      
+
       aWss.clients.forEach((client) => {
         if (client.readyState === 1) {
           client.send(JSON.stringify({
@@ -349,6 +406,71 @@ const markGroupMessageAsRead = async (req, res, aWss) => {
   }
 };
 
+const updateMessage = async (req, res) => {
+  const { id } = req.params;
+  const { content } = req.body;
+  try {
+    const updatedMessage = await prisma.groupMessage.update({
+      where: { id },
+      data: { content },
+    });
+    res.status(200).json(updatedMessage);
+  } catch (error) {
+    console.error("Error while updating message:", error);
+    res
+      .status(500)
+      .json({ error: "Server error while updating message" });
+  }
+}
+
+const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params
+    const message = await prisma.groupMessage.update({
+      where: {
+        id: messageId,
+      },
+      data: {
+        files: null,
+        content: 'This message has been deleted',
+        deleted: true,
+      }
+    });
+    res.status(200).json(message);
+  } catch (e) {
+    console.log(e, "failed to delete message")
+  }
+}
+
+const changeMemberRole = async (req, res) => {
+  const { groupId, memberId, role } = req.body;
+  try {
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        ownerProfile: true,
+      },
+    })
+    if (memberId !== group.profile.id) {
+      return res.status(403).json({ error: "You are not allowed to change another user's role" });
+    }
+    const updatedGroup = await prisma.group.update({
+      where: { id: groupId },
+      data: {
+        members: {
+          update: {
+            where: { memberId },
+            data: { role },
+          },
+        },
+      },
+    });
+    res.status(200).json(updatedGroup);
+  } catch (error) {
+    console.error("Error while updating group:", error);
+    res.status(500).json({ error: "Server error while updating group" });
+  }
+};
 
 
-module.exports = { createGroup, getUserGroups, getGroupById, getGroupMessages, sendMessage, markGroupMessageAsRead }
+module.exports = { createGroup, getUserGroups, getGroupById, getGroupMessages, sendMessage, markGroupMessageAsRead, updateMessage, deleteMessage, addUsersToGroup, changeMemberRole }

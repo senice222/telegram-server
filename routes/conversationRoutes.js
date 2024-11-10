@@ -11,8 +11,8 @@ module.exports = (aWss) => {
     conversationRoute.post('/create-conversation', (req, res) => createConversationIfNotExists(req, res));
     // conversationRoute.post('/send-message-conversation', sendMessageInConversation);
     conversationRoute.post('/conversation/message', upload.array('fileUrls'), (req, res) => sendDirectMessage(req, res, aWss));
-    conversationRoute.patch('/conversation/message/edit/:id', upload.array('fileUrls'), updateMessage);
-    conversationRoute.delete('/conversation/message/delete/:messageId', (req, res) => deleteMessage(req, res));
+    conversationRoute.patch('/conversation/message/edit/:id', upload.array('fileUrls'), (req, res) => updateMessage(req, res, aWss));
+    conversationRoute.delete('/conversation/message/delete/:messageId/:owner', (req, res, aWss) => deleteMessage(req, res, aWss));
     conversationRoute.put('/messages/:messageId/markAsRead', (req, res) => markMessageAsRead(req, res, aWss));
 
     return conversationRoute;

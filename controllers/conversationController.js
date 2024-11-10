@@ -39,6 +39,44 @@ const createConversationIfNotExists = async (req, res) => {
   }
 };
 
+const searchMessagesByContent = async (req, res) => {
+  const { content } = req.query;
+
+  if (!content) {
+    return res.status(400).json({ error: "Content query parameter is required" });
+  }
+
+  try {
+    const messages = await prisma.directMessage.findMany({
+      where: {
+        content: {
+          contains: content,
+          mode: "insensitive" // Поиск без учета регистра
+        }
+      },
+      include: {
+        conversation: {
+          include: {
+            memberOne: true,
+            memberTwo: true
+          }
+        },
+        replyToMessage: {
+          include: {
+            ownerProfile: true
+          }
+        },
+        ownerProfile: true
+      }
+    });
+
+    res.status(200).json(messages);
+  } catch (error) {
+    console.error("Error while searching messages by content:", error);
+    res.status(500).json({ error: "Server error while searching messages" });
+  }
+};
+
 const getConversation = async (req, res) => {
   const { memberOneId, memberTwoId } = req.query;
   try {
@@ -84,12 +122,12 @@ const getConversationMessages = async (req, res) => {
     const MESSAGE_BATCH = 30;
     const { cursor, conversationId } = req.query;
 
+
     if (!conversationId) {
       return res.status(400).json({ message: "Conversation ID missing" });
     }
 
     let messages = [];
-
     if (cursor) {
       messages = await prisma.directMessage.findMany({
         take: MESSAGE_BATCH,
@@ -152,6 +190,9 @@ const getConversationMessages = async (req, res) => {
 
     const urlRegex = /(https?:\/\/[^\s]+)/g;
 
+
+
+
     messages.forEach((message) => {
       if (message.files) {
         let parsedFiles;
@@ -177,6 +218,7 @@ const getConversationMessages = async (req, res) => {
         categorizedMessages.links.push(message);
       }
     });
+
 
     let nextCursor = null;
 
@@ -292,13 +334,24 @@ const sendDirectMessage = async (req, res, aWss) => {
   }
 };
 
-const updateMessage = async (req, res) => {
+const updateMessage = async (req, res, aWss) => {
   const { id } = req.params;
-  const { content } = req.body;
+  const { content, owner, profile } = req.body;
   try {
+    if (!id || !content) {
+      return res.status(400).json({ message: "Message ID and new content are required." });
+    }
+    if (owner !== profile.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const updatedMessage = await prisma.directMessage.update({
       where: { id },
-      data: { content },
+      data: { content }
+    });
+    const conversationKey = `conversation:${updatedMessage.conversationId}:messages:update`;
+    aWss.clients.forEach((client) => {
+      client.send(JSON.stringify({ key: conversationKey, data: updatedMessage }));
     });
     res.status(200).json(updatedMessage);
   } catch (error) {
@@ -309,18 +362,39 @@ const updateMessage = async (req, res) => {
   }
 }
 
-const deleteMessage = async (req, res) => {
+const deleteMessage = async (req, res, aWss) => {
   try {
-    const { messageId } = req.params
-    const message = await prisma.directMessage.update({
+    const { messageId, owner } = req.params
+    if (!messageId) {
+      return res.status(400).json({ message: "Message ID and new content are required." });
+    }
+    const message = await prisma.directMessage.findUnique({
+      where: {
+        id: messageId,
+      },
+    });
+
+    if (!message) {
+      return res.status(404).json({ message: "Message not found." });
+    }
+
+    if (message.memberId !== owner) {
+      return res.status(401).json({ message: "Unauthorized: You do not have permission to delete this message." });
+    }
+    const updatedMessage = await prisma.directMessage.update({
       where: {
         id: messageId,
       },
       data: {
         files: null,
-        content: 'This message has been deleted',
+        content: 'Deleted message.',
         deleted: true,
       }
+    });
+
+    const conversationKey = `conversation:${updatedMessage.conversationId}:messages:update`;
+    aWss.clients.forEach((client) => {
+      client.send(JSON.stringify({ key: conversationKey, data: message }));
     });
     res.status(200).json(message);
   } catch (e) {
@@ -367,7 +441,6 @@ const markMessageAsRead = async (req, res, aWss) => {
   }
 };
 
-
 module.exports = {
   createConversationIfNotExists,
   getConversation,
@@ -376,5 +449,6 @@ module.exports = {
   sendDirectMessage,
   updateMessage,
   deleteMessage,
-  markMessageAsRead
+  markMessageAsRead,
+  searchMessagesByContent // Экспорт новой функции
 };

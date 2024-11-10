@@ -12,7 +12,6 @@ enum MemberRole {
   ADMIN
   MODERATOR
   MEMBER
-  GUEST
 }
 
 model Profile {
@@ -102,11 +101,12 @@ model Group {
 }
 
 model GroupMember {
-  id       String  @id @default(uuid())
+  id       String     @id @default(uuid())
   groupId  String
   memberId String
-  group    Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  profile  Profile @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  role     MemberRole @default(MEMBER)
+  group    Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  profile  Profile    @relation(fields: [memberId], references: [id], onDelete: Cascade)
 }
 
 model Conversation {
