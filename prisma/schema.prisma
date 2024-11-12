@@ -107,6 +107,7 @@ model GroupMember {
   role     MemberRole @default(MEMBER)
   group    Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
   profile  Profile    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  @@unique([groupId, memberId])
 }
 
 model Conversation {

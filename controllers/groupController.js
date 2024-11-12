@@ -16,7 +16,10 @@ const createGroup = async (req, res, aWss) => {
     if (!currentUser) {
       return res.status(404).json({ message: 'User not found' });
     }
-    const membersWithOwner = [currentUser, ...toObjectMembers]
+    const membersWithOwner = [
+      { ...currentUser, role: 'ADMIN' },
+      ...toObjectMembers.map(user => ({ ...user, role: 'MEMBER' })),
+    ];
     const newGroup = await prisma.group.create({
       data: {
         id: idWithMinus,
@@ -63,7 +66,6 @@ const addUsersToGroup = async (req, res, aWss) => {
       return res.status(404).json({ message: 'Group not found' });
     }
 
-
     const existingMemberIds = existingGroup.members.map(member => member.memberId);
 
     const membersToAdd = newMembers.filter(user => !existingMemberIds.includes(user.id));
@@ -74,10 +76,10 @@ const addUsersToGroup = async (req, res, aWss) => {
         groupId: groupId,
         profile: user
       }));
+
     if (membersToAdd.length === 0) {
       return res.status(200).json({ message: 'No new members to add' });
     }
-
 
     const updatedGroup = await prisma.group.update({
       where: { id: groupId },
@@ -442,16 +444,17 @@ const deleteMessage = async (req, res) => {
   }
 }
 
-const changeMemberRole = async (req, res) => {
-  const { groupId, memberId, role } = req.body;
+const changeMemberRole = async (req, res, aWss) => {
+  const { groupId, profileId, memberId, role } = req.body;
+
   try {
     const group = await prisma.group.findUnique({
       where: { id: groupId },
       include: {
-        ownerProfile: true,
+        owner: true,
       },
     })
-    if (memberId !== group.profile.id) {
+    if (profileId !== group.owner.id) {
       return res.status(403).json({ error: "You are not allowed to change another user's role" });
     }
     const updatedGroup = await prisma.group.update({
@@ -459,11 +462,20 @@ const changeMemberRole = async (req, res) => {
       data: {
         members: {
           update: {
-            where: { memberId },
+            where: { id: memberId },
             data: { role },
           },
         },
       },
+      include: {
+        members: true,
+      },
+    });
+    const groupKey = `group:${groupId}:updated`;
+    aWss.clients.forEach((client) => {
+      if (client.readyState === 1) {
+        client.send(JSON.stringify({ key: groupKey, group: updatedGroup }));
+      }
     });
     res.status(200).json(updatedGroup);
   } catch (error) {
